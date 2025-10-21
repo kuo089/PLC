@@ -1,5 +1,5 @@
-%load("ecoli r=2_Sample.mat")
-load('MSRCv2_Sample.mat');
+zai%load("ecoli r=2_Sample.mat")
+%load('lost.mat');
 
 para.alpha=0.01;
 para.beta=0.01;
@@ -17,16 +17,22 @@ NMI=[];
 
 for it=1:10
 
-    train_data=data(train_idx{it},:);
-    train_data=zscore(train_data);
-    test_data = data(test_idx{it},:);
-    test_data=zscore(test_data);
-    train_p_target=partial_target(:,train_idx{it});
-    test_target=target(:,test_idx{it});
+        % 假设 data1, data2 分别是视图1/视图2的全数据 (1758×d1 / 1758×d2)
+    train_data_cell = { data1(train_idx{it},:), data2(train_idx{it},:) };
+    test_data_cell  = { data1(test_idx{it},:),  data2(test_idx{it},:)  };
 
-    groups=PLC(train_data,train_p_target,test_data,para);
+    [groups_all_aligned, perms_all] = PLC_mv(train_data_cell, train_p_target, test_data_cell, para);
 
-    [acc,nmi]=CalMetrics(test_target,groups);
+    % 取对齐后的各视图“测试集部分”标签，用来评测
+    nb = numel(test_idx{it});
+    groups_v1 = groups_all_aligned(end-nb+1:end, 1);
+    groups_v2 = groups_all_aligned(end-nb+1:end, 2);
+
+    % 你可以任选一个视图做评测，或做简单融合（投票/参考）：
+    groups = groups_v1;                      % 例：用对齐后的视图1
+    % 或：groups = mode([groups_v1, groups_v2], 2);   % 多视图投票
+    [acc,nmi] = CalMetrics(test_target, groups);
+
     ACC=[ACC,acc];
     NMI=[NMI,nmi];
     
